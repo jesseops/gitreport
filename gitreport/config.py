@@ -44,6 +44,7 @@ class ServerConfig:
 class PromptConfig:
     period: str | None = None
     overall: str | None = None
+    context: str | None = None
 
 
 @dataclass(frozen=True)

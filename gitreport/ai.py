@@ -211,15 +211,26 @@ DEFAULT_PROMPTS = {
 
 
 def _load_prompt_instructions(cfg: Config, prompt_type: str) -> str:
-    """Load custom instructions from file if configured, else use defaults."""
+    """Load custom instructions from file if configured, else use defaults.
+
+    If prompts.context is set, it is appended as additional context.
+    """
     path = getattr(cfg.prompts, prompt_type, None)
     if path:
         from pathlib import Path
         p = Path(path)
         if p.exists():
-            return p.read_text()
-        print(f"Warning: custom prompt file not found: {path}", file=sys.stderr)
-    return DEFAULT_PROMPTS[prompt_type]
+            instructions = p.read_text()
+        else:
+            print(f"Warning: custom prompt file not found: {path}", file=sys.stderr)
+            instructions = DEFAULT_PROMPTS[prompt_type]
+    else:
+        instructions = DEFAULT_PROMPTS[prompt_type]
+
+    if cfg.prompts.context:
+        instructions += f"\n\nAdditional context:\n{cfg.prompts.context}"
+
+    return instructions
 
 
 def _pr_block(pr: dict, include_diff: bool = False, diffs_by_pr: dict | None = None) -> str:

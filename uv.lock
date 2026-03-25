@@ -332,7 +332,7 @@ woff = [
 ]
 
 [[package]]
-name = "github-report"
+name = "gitreport"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
