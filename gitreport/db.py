@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import sqlite3
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -12,6 +13,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .config import Config
+
+logger = logging.getLogger(__name__)
 
 # Rough chars-per-token estimate for truncation budget
 CHARS_PER_TOKEN = 4
@@ -110,7 +113,8 @@ def parse_dt(s: str | None) -> datetime | None:
         return None
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
-    except Exception:
+    except (ValueError, TypeError):
+        logger.debug("Could not parse datetime: %r", s)
         return None
 
 

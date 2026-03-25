@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
+
+logger = logging.getLogger(__name__)
+
 
 # ── Basic gh CLI wrappers ──────────────────────────────────────────────────
 
@@ -13,7 +17,7 @@ def gh(args: list[str], check: bool = True) -> dict | list | None:
         r = subprocess.run(["gh"] + args, capture_output=True, text=True, check=check)
         return json.loads(r.stdout) if r.stdout.strip() else None
     except subprocess.CalledProcessError as e:
-        print(f"  gh error: {e.stderr.strip()}", file=sys.stderr)
+        logger.warning("gh error: %s", e.stderr.strip())
         return None
     except json.JSONDecodeError:
         return None
@@ -25,7 +29,7 @@ def gh_text(args: list[str]) -> str:
         r = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
         return r.stdout
     except subprocess.CalledProcessError as e:
-        print(f"  gh error: {e.stderr.strip()}", file=sys.stderr)
+        logger.warning("gh error: %s", e.stderr.strip())
         return ""
 
 
@@ -34,7 +38,7 @@ def gh_lines(args: list[str]) -> list[str]:
         r = subprocess.run(["gh"] + args, capture_output=True, text=True, check=True)
         return [line.strip() for line in r.stdout.splitlines() if line.strip()]
     except subprocess.CalledProcessError as e:
-        print(f"  gh error: {e.stderr.strip()}", file=sys.stderr)
+        logger.warning("gh error: %s", e.stderr.strip())
         return []
 
 
@@ -42,7 +46,7 @@ def check_gh() -> None:
     try:
         subprocess.run(["gh", "auth", "status"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("Error: gh CLI not found or not authenticated. Run: gh auth login", file=sys.stderr)
+        logger.error("gh CLI not found or not authenticated. Run: gh auth login")
         sys.exit(1)
 
 
@@ -94,14 +98,14 @@ def _graphql(query: str, variables: dict) -> dict | None:
         data = json.loads(r.stdout)
         if data.get("errors"):
             for err in data["errors"]:
-                print(f"  GraphQL error: {err.get('message', '')}", file=sys.stderr)
+                logger.warning("GraphQL error: %s", err.get("message", ""))
             return None
         return data.get("data")
     except subprocess.CalledProcessError as e:
-        print(f"  gh graphql error: {e.stderr.strip()}", file=sys.stderr)
+        logger.warning("gh graphql error: %s", e.stderr.strip())
         return None
     except json.JSONDecodeError as e:
-        print(f"  GraphQL JSON parse error: {e}", file=sys.stderr)
+        logger.warning("GraphQL JSON parse error: %s", e)
         return None
 
 
@@ -132,7 +136,7 @@ def _normalise_pr(node: dict) -> dict:
 def fetch_prs_graphql(repo: str, since: str | None = None, batch_size: int = 50) -> list[dict]:
     """Fetch all PRs for a repo using cursor-paginated GraphQL batches."""
     if "/" not in repo:
-        print(f"  Invalid repo format: {repo}", file=sys.stderr)
+        logger.error("Invalid repo format: %s", repo)
         return []
 
     owner, name = repo.split("/", 1)
@@ -152,7 +156,7 @@ def fetch_prs_graphql(repo: str, since: str | None = None, batch_size: int = 50)
         }
         data = _graphql(_PR_BATCH_QUERY, variables)
         if not data:
-            print(f"  Stopping after page {page} (GraphQL error)", file=sys.stderr)
+            logger.warning("Stopping after page %d (GraphQL error)", page)
             break
 
         pr_conn = data["repository"]["pullRequests"]
@@ -161,7 +165,7 @@ def fetch_prs_graphql(repo: str, since: str | None = None, batch_size: int = 50)
 
         normalised = [_normalise_pr(n) for n in nodes]
         all_prs.extend(normalised)
-        print(f"    page {page}: {len(normalised)} PRs  (total so far: {len(all_prs)})")
+        logger.info("    page %d: %d PRs  (total so far: %d)", page, len(normalised), len(all_prs))
 
         if since and normalised:
             oldest_updated = min(p["updatedAt"] for p in normalised if p["updatedAt"])

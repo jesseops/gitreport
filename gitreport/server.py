@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.resources
+import logging
 from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
     import argparse
 
     from .config import Config
+
+logger = logging.getLogger(__name__)
 
 
 class ReportHandler(SimpleHTTPRequestHandler):

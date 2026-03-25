@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
 import urllib.error
@@ -12,6 +13,8 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from .config import Config
+
+logger = logging.getLogger(__name__)
 
 
 # ── Provider protocol ──────────────────────────────────────────────────────
@@ -129,14 +132,14 @@ def get_provider(cfg: Config) -> SummaryProvider:
     if provider_name == "claude":
         p = ClaudeProvider()
         if not p.is_available():
-            print("Error: claude CLI not found.", file=sys.stderr)
+            logger.error("claude CLI not found.")
             sys.exit(1)
         return p
 
     if provider_name == "codex":
         p = CodexProvider()
         if not p.is_available():
-            print("Error: codex CLI not found.", file=sys.stderr)
+            logger.error("codex CLI not found.")
             sys.exit(1)
         return p
 
@@ -147,7 +150,7 @@ def get_provider(cfg: Config) -> SummaryProvider:
             max_context=cfg.ai.ollama_max_context,
         )
         if not p.is_available():
-            print(f"Error: Ollama not reachable at {cfg.ai.ollama_base_url}", file=sys.stderr)
+            logger.error("Ollama not reachable at %s", cfg.ai.ollama_base_url)
             sys.exit(1)
         return p
 
@@ -163,10 +166,10 @@ def get_provider(cfg: Config) -> SummaryProvider:
     ]:
         p = ProviderClass(**kwargs)
         if p.is_available():
-            print(f"  Auto-detected AI provider: {p.name}")
+            logger.info("  Auto-detected AI provider: %s", p.name)
             return p
 
-    print("Warning: no AI provider found. Summaries will be skipped.", file=sys.stderr)
+    logger.warning("No AI provider found. Summaries will be skipped.")
     return NoneProvider()
 
 
@@ -222,7 +225,7 @@ def _load_prompt_instructions(cfg: Config, prompt_type: str) -> str:
         if p.exists():
             instructions = p.read_text()
         else:
-            print(f"Warning: custom prompt file not found: {path}", file=sys.stderr)
+            logger.warning("Custom prompt file not found: %s", path)
             instructions = DEFAULT_PROMPTS[prompt_type]
     else:
         instructions = DEFAULT_PROMPTS[prompt_type]

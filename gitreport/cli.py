@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from . import __version__
-from .config import load_config
+from .config import Config, load_config
+
+logger = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -18,6 +21,8 @@ def main(argv: list[str] | None = None) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress progress messages")
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -58,6 +63,9 @@ def main(argv: list[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
 
+    log_level = logging.DEBUG if args.verbose else logging.WARNING if args.quiet else logging.INFO
+    logging.basicConfig(level=log_level, format="%(message)s", stream=sys.stderr)
+
     # Build CLI overrides dict
     cli_overrides: dict = {}
     if hasattr(args, "provider") and args.provider is not None:
@@ -86,29 +94,29 @@ def main(argv: list[str] | None = None) -> None:
     dispatch[args.command](args, cfg)
 
 
-def _cmd_sync(args: argparse.Namespace, cfg) -> None:
+def _cmd_sync(args: argparse.Namespace, cfg: Config) -> None:
     from .sync import cmd_sync
     cmd_sync(args, cfg)
 
 
-def _cmd_status(args: argparse.Namespace, cfg) -> None:
+def _cmd_status(args: argparse.Namespace, cfg: Config) -> None:
     from .sync import cmd_status
     cmd_status(args, cfg)
 
 
-def _cmd_serve(args: argparse.Namespace, cfg) -> None:
+def _cmd_serve(args: argparse.Namespace, cfg: Config) -> None:
     from .server import cmd_serve
     cmd_serve(args, cfg)
 
 
-def _cmd_report(args: argparse.Namespace, cfg) -> None:
+def _cmd_report(args: argparse.Namespace, cfg: Config) -> None:
     from .ai import build_prompt_overall, build_prompt_period, get_provider
     from .db import build_periods, db_connect, query_period
     from .render import render_report
 
     db_path = Path(cfg.database.path)
     if not db_path.exists():
-        print(f"No DB at {db_path}. Run sync first.", file=sys.stderr)
+        logger.error("No DB at %s. Run sync first.", db_path)
         sys.exit(1)
 
     deep = args.deep
@@ -126,20 +134,21 @@ def _cmd_report(args: argparse.Namespace, cfg) -> None:
         ).fetchone()[0]
         con_check.close()
         if diff_count == 0:
-            print("Warning: --deep requested but no diffs in DB. Run: sync --with-diffs", file=sys.stderr)
+            logger.warning("--deep requested but no diffs in DB. Run: sync --with-diffs")
 
     con = db_connect(cfg)
     try:
         repo = args.repo
         row = con.execute("SELECT default_branch, last_sync FROM repos WHERE repo=?", (repo,)).fetchone()
         if not row:
-            print(f"Repo '{repo}' not found in DB. Run: sync --repo {repo}", file=sys.stderr)
+            logger.error("Repo '%s' not found in DB. Run: sync --repo %s", repo, repo)
             sys.exit(1)
 
         default_branch = row["default_branch"]
-        print(f"Generating report for {repo}  (last sync: {row['last_sync']})"
-              + ("  [DEEP]" if deep else "")
-              + (f"  [provider: {provider.name}]" if not no_summary else ""))
+        logger.info("Generating report for %s  (last sync: %s)%s%s",
+                    repo, row['last_sync'],
+                    "  [DEEP]" if deep else "",
+                    f"  [provider: {provider.name}]" if not no_summary else "")
 
         # Date range
         if args.date_from or args.date_to:
@@ -150,7 +159,7 @@ def _cmd_report(args: argparse.Namespace, cfg) -> None:
                 date_to = (datetime.strptime(args.date_to, "%Y-%m-%d").replace(tzinfo=UTC)
                            if args.date_to else datetime.now(UTC))
             except ValueError:
-                print("Date format must be YYYY-MM-DD", file=sys.stderr)
+                logger.error("Date format must be YYYY-MM-DD")
                 sys.exit(1)
         else:
             period = args.period
@@ -159,19 +168,19 @@ def _cmd_report(args: argparse.Namespace, cfg) -> None:
             date_from = date_to - timedelta(days=days)
 
         periods = build_periods(period, date_from, date_to)
-        print(f"  Breakdown: {period}  →  {len(periods)} period(s)")
+        logger.info("  Breakdown: %s  →  %d period(s)", period, len(periods))
 
         periods_out: list[tuple[str, str, dict, str]] = []
         for i, (label, start, end) in enumerate(periods):
             pid = f"p{i}"
-            print(f"  [{i + 1}/{len(periods)}] {label}")
+            logger.info("  [%d/%d] %s", i + 1, len(periods), label)
             pd = query_period(con, repo, start, end,
                               include_diffs=deep,
                               max_diff_tokens=max_diff_tokens,
                               stale_branch_days=stale_branch_days)
             summary = ""
             if not no_summary:
-                print(f"    → {provider.name} summary...")
+                logger.info("    → %s summary...", provider.name)
                 result = provider.summarize(
                     build_prompt_period(repo, label, pd, deep=deep, cfg=cfg,
                                         stale_branch_days=stale_branch_days))
@@ -188,12 +197,12 @@ def _cmd_report(args: argparse.Namespace, cfg) -> None:
 
         overall_summary = ""
         if not no_summary and len(periods) > 1:
-            print(f"  → Overall {provider.name} summary...")
+            logger.info("  → Overall %s summary...", provider.name)
             window = f"{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')}"
             result = provider.summarize(build_prompt_overall(repo, window, full_pd, cfg=cfg))
             overall_summary = result or ""
 
-        print("Rendering HTML...")
+        logger.info("Rendering HTML...")
         html = render_report(
             repo=repo, default_branch=default_branch,
             date_from=date_from, date_to=date_to, period=period,

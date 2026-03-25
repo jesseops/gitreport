@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     import sqlite3
 
     from .config import Config
+
+logger = logging.getLogger(__name__)
 
 
 def _print_db_status(con: sqlite3.Connection, repo: str) -> None:
@@ -52,11 +55,11 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
 
     # Quick path: only backfill commits
     if args.backfill_commits:
-        print(f"\nBackfilling all commits for {repo}...")
+        logger.info("\nBackfilling all commits for %s...", repo)
         commits_path = f"repos/{repo}/commits?per_page=100"
         raw_commits = gh(["api", commits_path, "--paginate"]) or []
         commits = [parse_rest_commit(c) for c in raw_commits]
-        print(f"    {len(commits)} commits fetched")
+        logger.info("    %d commits fetched", len(commits))
         db_upsert_commits(con, repo, commits)
         con.commit()
         print(f"Backfill complete → {db_path}")
@@ -66,27 +69,27 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
     last_sync, last_diff_sync = db_last_sync(con, repo)
 
     if last_sync and not args.full:
-        print(f"Incremental sync (last: {last_sync})  —  use --full to re-fetch everything")
+        logger.info("Incremental sync (last: %s)  —  use --full to re-fetch everything", last_sync)
         since = last_sync
     else:
         since = None
         if args.full and last_sync:
-            print("Full sync — clearing existing data...")
+            logger.info("Full sync — clearing existing data...")
             for t in ("prs", "commits", "branches", "pr_files", "pr_diffs"):
                 con.execute(f"DELETE FROM {t} WHERE repo=?", (repo,))
             con.commit()
 
-    print(f"\nSyncing {repo}...")
+    logger.info("\nSyncing %s...", repo)
 
     # Repo info
     info = gh(["repo", "view", repo, "--json", "defaultBranchRef"]) or {}
     default_branch = (info.get("defaultBranchRef") or {}).get("name", "main")
 
     # PRs
-    print("  Fetching pull requests (batched GraphQL)...")
+    logger.info("  Fetching pull requests (batched GraphQL)...")
     all_prs = fetch_prs_graphql(repo, since)
     prs = [p for p in all_prs if not since or (p.get("updatedAt", "") >= since)]
-    print(f"    {len(prs)} PRs fetched (of {len(all_prs)} total)")
+    logger.info("    %d PRs fetched (of %d total)", len(prs), len(all_prs))
     db_upsert_prs(con, repo, prs)
 
     # Per-PR file stats
@@ -94,7 +97,7 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
         "SELECT DISTINCT pr_number FROM pr_files WHERE repo=?", (repo,)).fetchall()}
     prs_needing_files = [p for p in prs if p["number"] not in existing_files or args.full]
     if prs_needing_files:
-        print(f"  Fetching file stats for {len(prs_needing_files)} PRs...")
+        logger.info("  Fetching file stats for %d PRs...", len(prs_needing_files))
         for i, pr in enumerate(prs_needing_files):
             num = pr["number"]
             files = gh(["api", f"repos/{repo}/pulls/{num}/files", "--paginate", "--jq",
@@ -102,31 +105,31 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
             if files:
                 db_upsert_pr_files(con, repo, num, files)
             if (i + 1) % 20 == 0:
-                print(f"    {i+1}/{len(prs_needing_files)} done...")
+                logger.info("    %d/%d done...", i + 1, len(prs_needing_files))
 
     # Full diffs (optional)
     if with_diffs:
         existing_diffs = {r[0] for r in con.execute(
             "SELECT pr_number FROM pr_diffs WHERE repo=?", (repo,)).fetchall()}
         prs_needing_diffs = [p for p in all_prs if p["number"] not in existing_diffs or args.full]
-        print(f"  Fetching full diffs for {len(prs_needing_diffs)} PRs...")
+        logger.info("  Fetching full diffs for %d PRs...", len(prs_needing_diffs))
         for i, pr in enumerate(prs_needing_diffs):
             num = pr["number"]
             diff = gh_text(["pr", "diff", str(num), "--repo", repo])
             db_upsert_diff(con, repo, num, diff)
             if (i + 1) % 10 == 0:
-                print(f"    {i+1}/{len(prs_needing_diffs)} diffs done...")
+                logger.info("    %d/%d diffs done...", i + 1, len(prs_needing_diffs))
 
     # Commits
-    print("  Fetching commits...")
+    logger.info("  Fetching commits...")
     commits_path = f"repos/{repo}/commits?per_page=100" + (f"&since={since}" if since else "")
     raw_commits = gh(["api", commits_path, "--paginate"]) or []
     commits = [parse_rest_commit(c) for c in raw_commits]
-    print(f"    {len(commits)} commits")
+    logger.info("    %d commits", len(commits))
     db_upsert_commits(con, repo, commits)
 
     # Branches
-    print("  Fetching branches...")
+    logger.info("  Fetching branches...")
     branch_data = gh(["api", f"repos/{repo}/branches", "--paginate",
                        "--jq", '[.[] | {name: .name, sha: .commit.sha}]']) or []
     branches: list[dict] = []
@@ -145,7 +148,7 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
                 "last_commit": ci.get("date", ""),
                 "last_author": ci.get("author", ""),
             })
-    print(f"    {len(branches)} branches")
+    logger.info("    %d branches", len(branches))
     db_upsert_branches(con, repo, branches, default_branch)
 
     db_update_sync(con, repo, default_branch, diff_sync=with_diffs)
