@@ -1,0 +1,21 @@
+{% macro hotfiles_table(hotfiles, max_churn) %}
+{% if hotfiles %}
+<div class="section-title">Most-Changed Files</div>
+<div class="full"><div class="cell" style="padding:0">
+<table>
+<thead><tr><th>File</th><th class="num">+Lines</th><th class="num">-Lines</th><th class="num-muted">PRs</th><th>Churn</th></tr></thead>
+<tbody>
+{% for fn, s in hotfiles %}
+{% set pct = ((s.add + s.del) / max_churn * 100)|int %}
+<tr>
+  <td style="font-family:'DM Mono',monospace;font-size:11px">{{ fn }}</td>
+  <td class="num" style="color:var(--merged)">+{{ "{:,}".format(s.add) }}</td>
+  <td class="num" style="color:var(--abandoned)">-{{ "{:,}".format(s.del) }}</td>
+  <td class="num-muted">{{ s.prs }}</td>
+  <td><span class="hotfile-bar-wrap"><span class="hotfile-bar" style="width:{{ pct }}%"></span></span></td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div></div>
+{% endif %}
+{% endmacro %}

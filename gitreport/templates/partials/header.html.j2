@@ -1,0 +1,16 @@
+<header>
+  <div>
+    <div class="repo-name"><span>{{ owner }}/</span>{{ name }}</div>
+    <div style="color:var(--muted);margin-top:6px">{{ window }} · {{ period_label }} · {{ default_branch }}</div>
+    {% if deep %}
+    <span class="depth-badge depth-deep">⬡ Deep analysis</span>
+    {% else %}
+    <span class="depth-badge depth-files">◈ File stats</span>
+    {% endif %}
+  </div>
+  <div class="meta">
+    Generated <strong>{{ now().strftime('%Y-%m-%d %H:%M') }}</strong><br>
+    {{ total_commits }} commits · {{ total_merged }} merged · {{ num_periods }} period(s)<br>
+    <span style="font-size:11px">DB: {{ db_name }}</span>
+  </div>
+</header>

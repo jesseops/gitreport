@@ -1,0 +1,20 @@
+{% macro commits_list(commits, repo) %}
+{% if not commits %}
+<li style="color:var(--muted);padding:8px 0">No commits in window</li>
+{% else %}
+  {% for c in commits[:40] %}
+  {% set msg = (c.message|default("")|truncate(100, True, "…")) %}
+  {% set sha = (c.sha|default(""))[:7] %}
+  {% set full_sha = c.sha|default("") %}
+  <li class="commit-row">
+    <a href="https://github.com/{{ repo }}/commit/{{ full_sha }}" class="commit-sha" target="_blank">{{ sha }}</a>
+    <span class="commit-author">@{{ c.author|default("?") }}</span>
+    <span class="commit-date">{{ (c.committed_at|default(""))|fmt_date }}</span>
+    <span class="commit-msg">{{ msg }}</span>
+  </li>
+  {% endfor %}
+  {% if commits|length > 40 %}
+  <li style="color:var(--muted);padding:6px 0;font-size:11px">… {{ commits|length - 40 }} more commits</li>
+  {% endif %}
+{% endif %}
+{% endmacro %}

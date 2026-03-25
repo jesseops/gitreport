@@ -1,0 +1,99 @@
+{% from "macros/pr_card.html.j2" import pr_card %}
+{% from "macros/branch_item.html.j2" import branch_item %}
+{% from "macros/commits_list.html.j2" import commits_list %}
+{% from "macros/user_table.html.j2" import user_table %}
+{% from "macros/hotfiles.html.j2" import hotfiles_table %}
+{% from "macros/summary_block.html.j2" import summary_block %}
+
+{% macro period_block(p, repo, no_summary, stale_branch_days, provider_name) %}
+{% set pd = p.pd %}
+{% set pr = pd.pr_stats %}
+{% set bc = pd.branch_cats %}
+
+<div class="period-block" id="{{ p.pid }}">
+  <div class="period-header">
+    <span class="period-label">{{ p.label }}</span>
+    <div class="period-stats">
+      <span class="period-stat"><strong class="merged">{{ pr.merged|length }}</strong> merged</span>
+      <span class="period-stat"><strong class="open">{{ pr.open|length }}</strong> open</span>
+      <span class="period-stat"><strong class="abandoned">{{ pr.closed_unmerged|length }}</strong> abandoned</span>
+      <span class="period-stat"><strong>{{ pd.commits|length }}</strong> commits</span>
+    </div>
+  </div>
+
+  <details class="section-accordion" open>
+    <summary><span class="section-label">Merged PRs ({{ pr.merged|length }})</span></summary>
+    <div class="accordion-body"><ul class="pr-list">
+      {% if pr.merged %}
+        {% for prx in pr.merged[:10] %}{{ pr_card(prx, "pill-merged", "merged", repo) }}{% endfor %}
+      {% else %}
+        <li style="color:var(--muted);padding:8px 0">None</li>
+      {% endif %}
+    </ul></div>
+  </details>
+  <details class="section-accordion">
+    <summary><span class="section-label">Open PRs ({{ pr.open|length }})</span></summary>
+    <div class="accordion-body"><ul class="pr-list">
+      {% if pr.open %}
+        {% for prx in pr.open[:10] %}{{ pr_card(prx, "pill-open", "open", repo) }}{% endfor %}
+      {% else %}
+        <li style="color:var(--muted);padding:8px 0">None</li>
+      {% endif %}
+    </ul></div>
+  </details>
+  <details class="section-accordion">
+    <summary><span class="section-label">Closed Without Merge ({{ pr.closed_unmerged|length }})</span></summary>
+    <div class="accordion-body"><ul class="pr-list">
+      {% if pr.closed_unmerged %}
+        {% for prx in pr.closed_unmerged[:10] %}{{ pr_card(prx, "pill-closed", "closed", repo) }}{% endfor %}
+      {% else %}
+        <li style="color:var(--muted);padding:8px 0">None</li>
+      {% endif %}
+    </ul></div>
+  </details>
+
+  {{ hotfiles_table(p.hotfiles, p.max_hotfile_churn) }}
+
+  <div class="section-title">Branches</div>
+  <div class="grid-2">
+    <div class="cell">
+      <div class="section-label">Active (≤{{ stale_branch_days }}d)</div>
+      <ul class="branch-list">
+        {% if bc.active %}
+          {% for b in bc.active[:12] %}{{ branch_item(b, repo) }}{% endfor %}
+        {% else %}
+          <li style="color:var(--muted)">None</li>
+        {% endif %}
+      </ul>
+    </div>
+    <div class="cell">
+      <div class="section-label">Stale (&gt;{{ stale_branch_days }}d)</div>
+      <ul class="branch-list">
+        {% if bc.stale %}
+          {% for b in bc.stale[:12] %}{{ branch_item(b, repo) }}{% endfor %}
+        {% else %}
+          <li style="color:var(--muted)">None</li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-title">Per-User Activity</div>
+  <div class="full"><div class="cell" style="padding:0">
+    <table><thead><tr>
+      <th>Contributor</th><th class="num">Commits</th><th>Activity</th>
+      <th class="num">PRs Opened</th><th class="num">PRs Merged</th>
+      <th class="num">+Lines</th><th class="num">-Lines</th>
+    </tr></thead><tbody>{{ user_table(p.sorted_users, p.max_commits) }}</tbody></table>
+  </div></div>
+
+  <details class="section-accordion">
+    <summary><span class="section-label">Commits ({{ pd.commits|length }})</span></summary>
+    <div class="accordion-body"><ul class="commit-list">{{ commits_list(pd.commits, repo) }}</ul></div>
+  </details>
+
+  {% if not no_summary and p.summary %}
+    {{ summary_block(p.label, p.summary, provider_name=provider_name) }}
+  {% endif %}
+</div>
+{% endmacro %}

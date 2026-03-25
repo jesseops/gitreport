@@ -1,0 +1,9 @@
+{% from "macros/summary_block.html.j2" import summary_block %}
+
+{% if not no_summary and periods_data|length > 1 and overall_summary %}
+<hr class="divider">
+<div id="overall">
+  <div class="section-title">Overall Summary — {{ window }}</div>
+  {{ summary_block(window, overall_summary, "overall", provider_name=provider_name) }}
+</div>
+{% endif %}

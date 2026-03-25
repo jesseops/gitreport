@@ -1,0 +1,18 @@
+{% macro user_table(sorted_users, max_commits) %}
+{% if not sorted_users %}
+<tr><td colspan="7" style="color:var(--muted);text-align:center">No activity</td></tr>
+{% else %}
+  {% for user, s in sorted_users %}
+  {% set pct = (s.commits / max_commits * 100)|int %}
+  <tr>
+    <td>@{{ user }}</td>
+    <td class="num">{{ s.commits }}</td>
+    <td><span class="bar-wrap"><span class="bar" style="width:{{ pct }}%"></span></span></td>
+    <td class="num-muted">{{ s.prs_opened }}</td>
+    <td class="num">{{ s.prs_merged }}</td>
+    <td class="num" style="color:var(--merged)">+{{ "{:,}".format(s.additions) }}</td>
+    <td class="num" style="color:var(--abandoned)">-{{ "{:,}".format(s.deletions) }}</td>
+  </tr>
+  {% endfor %}
+{% endif %}
+{% endmacro %}

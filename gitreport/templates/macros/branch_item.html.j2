@@ -1,0 +1,10 @@
+{% macro branch_item(b, repo) %}
+{% set raw_name = (b.name|default(""))[:55] %}
+{% set age = b.age_days|default("?") ~ "d" %}
+{% set auth = b.last_author|default("") %}
+<li>
+  {% if b.is_default %}<span class="pill pill-default">default</span>{% endif %}
+  <a href="https://github.com/{{ repo }}/tree/{{ raw_name|urlencode }}" class="branch-name" target="_blank">{{ raw_name }}</a>
+  <span class="branch-age">{{ age }}{% if auth %} · @{{ auth }}{% endif %}</span>
+</li>
+{% endmacro %}

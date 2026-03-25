@@ -1,0 +1,9 @@
+{% macro summary_block(label, summary, badge_class="", provider_name="AI") %}
+<div class="full"><div class="cell">
+  <div class="ai-header">
+    <span class="ai-badge {{ badge_class }}">{{ provider_name }} Analysis</span>
+    <span style="color:var(--muted);font-size:11px">{{ label }}</span>
+  </div>
+  <div class="ai-summary">{{ summary|md_to_html|safe }}</div>
+</div></div>
+{% endmacro %}

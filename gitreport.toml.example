@@ -1,0 +1,29 @@
+# gitreport configuration
+# Copy to ./gitreport.toml (project) or ~/.config/gitreport/config.toml (global)
+
+[database]
+path = "gitreport.db"
+
+[ai]
+provider = "auto"           # auto | claude | codex | ollama | none
+model = ""                  # provider-specific; empty = default
+
+[ai.ollama]
+base_url = "http://localhost:11434"
+model = "llama3.1"
+max_context = 8000
+
+[report]
+stale_branch_days = 14
+max_diff_tokens = 8000
+default_days = 30
+output = "report.html"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[prompts]
+# Override instruction text. Data context is always auto-generated.
+# period = "path/to/period_prompt.txt"
+# overall = "path/to/overall_prompt.txt"

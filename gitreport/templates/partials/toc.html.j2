@@ -1,0 +1,11 @@
+<div class="toc">
+  <div class="toc-title">Jump to period</div>
+  <ul class="toc-list">
+    {% for p in periods_data %}
+    <li><a href="#{{ p.pid }}">{{ p.label }}</a></li>
+    {% endfor %}
+    {% if not no_summary and periods_data|length > 1 %}
+    <li><a href="#overall">Overall Summary</a></li>
+    {% endif %}
+  </ul>
+</div>

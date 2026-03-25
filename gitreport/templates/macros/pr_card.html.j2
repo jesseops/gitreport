@@ -1,0 +1,63 @@
+{% macro pr_card(pr, pill_cls, pill_lbl, repo) %}
+{% set number = pr.number|default("") %}
+{% set title_text = (pr.title|default("")|truncate(70, True, "…")) %}
+{% set display_title = "#" ~ number ~ " " ~ title_text if number else title_text %}
+{% set login = pr.author|default("?") %}
+{% set date = (pr.merged_at or pr.created_at or "")|fmt_date %}
+{% set meta_parts = ["@" ~ login] %}
+{% if date %}{% set meta_parts = meta_parts + [date] %}{% endif %}
+{% if pr.additions or pr.deletions %}{% set meta_parts = meta_parts + ["+" ~ pr.additions|default(0) ~ "/-" ~ pr.deletions|default(0)] %}{% endif %}
+{% if pr.comment_count %}{% set meta_parts = meta_parts + [pr.comment_count ~ "💬"] %}{% endif %}
+{% if pr.review_decision %}
+  {% if "APPROVE" in pr.review_decision %}{% set rd_icon = "✓" %}
+  {% elif "CHANGE" in pr.review_decision %}{% set rd_icon = "✗" %}
+  {% else %}{% set rd_icon = "?" %}{% endif %}
+  {% set meta_parts = meta_parts + [rd_icon ~ " " ~ pr.review_decision|lower|replace("_", " ")] %}
+{% endif %}
+<li class="pr-card">
+  <div class="pr-card-header">
+    <span class="pill {{ pill_cls }}">{{ pill_lbl }}</span>
+    <a href="https://github.com/{{ repo }}/pull/{{ number }}" class="pr-title" target="_blank" title="{{ pr.title|default('') }}">{{ display_title }}</a>
+    <span class="pr-meta">{{ meta_parts|join(" · ") }}</span>
+  </div>
+  {% if pr.labels %}
+  <div class="pr-detail">
+    {% for label in pr.labels[:4] %}
+    <span class="label-pill">{{ label }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% set body = (pr.body|default("")|truncate(160, True, "…"))|trim %}
+  {% if body %}
+  <div class="pr-body">{{ body }}</div>
+  {% endif %}
+  {% if pr.files %}
+  {% set files = pr.files %}
+  {% set shown = files[:20] %}
+  {% set max_churn = namespace(val=1) %}
+  {% for f in shown %}
+    {% if f.additions + f.deletions > max_churn.val %}{% set max_churn.val = f.additions + f.deletions %}{% endif %}
+  {% endfor %}
+  <div class="pr-files">
+    <button class="pr-files-toggle" onclick="toggleFiles(this)" data-count="{{ files|length }}">▶ {{ files|length }} files changed</button>
+    <div class="pr-files-list">
+      {% for f in shown %}
+      {% set churn = f.additions + f.deletions %}
+      {% set pct = (churn / max_churn.val * 100)|int %}
+      <div class="file-row">
+        <span class="file-name">{{ f.filename }}</span>
+        <span class="file-stat">
+          <span class="file-add">+{{ f.additions }}</span>
+          <span class="file-del">-{{ f.deletions }}</span>
+          <span class="hotfile-bar-wrap" style="margin-left:6px"><span class="hotfile-bar" style="width:{{ pct }}%"></span></span>
+        </span>
+      </div>
+      {% endfor %}
+      {% if files|length > 20 %}
+      <div class="file-row" style="color:var(--muted)">… {{ files|length - 20 }} more files</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</li>
+{% endmacro %}
