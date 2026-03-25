@@ -51,6 +51,8 @@ def main(argv: list[str] | None = None) -> None:
                        help="Include full diff content in prompts (requires sync --with-diffs)")
     p_rep.add_argument("--max-diff-tokens", type=int, default=None,
                        help="Token budget for diff content per period (default: 8000)")
+    p_rep.add_argument("--dump-prompts", action="store_true",
+                       help="Print the prompts that would be sent to the AI provider and exit")
 
     # ── status ──
     sub.add_parser("status", help="Show what's in the local DB")
@@ -168,6 +170,38 @@ def _cmd_report(args: argparse.Namespace, cfg: Config) -> None:
             date_from = date_to - timedelta(days=days)
 
         periods = build_periods(period, date_from, date_to)
+        dump_prompts = args.dump_prompts
+
+        if dump_prompts:
+            separator = "=" * 72
+            for i, (label, start, end) in enumerate(periods):
+                pd = query_period(con, repo, start, end,
+                                  include_diffs=deep,
+                                  max_diff_tokens=max_diff_tokens,
+                                  stale_branch_days=stale_branch_days)
+                prompt = build_prompt_period(repo, label, pd, deep=deep, cfg=cfg,
+                                            stale_branch_days=stale_branch_days)
+                print(f"{separator}")
+                print(f"PERIOD PROMPT [{i + 1}/{len(periods)}]: {label}")
+                print(f"Characters: {len(prompt):,}")
+                print(f"{separator}\n")
+                print(prompt)
+                print()
+
+            if len(periods) > 1:
+                full_pd = query_period(con, repo, date_from, date_to,
+                                       include_diffs=False,
+                                       stale_branch_days=stale_branch_days)
+                window = f"{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')}"
+                prompt = build_prompt_overall(repo, window, full_pd, cfg=cfg)
+                print(f"{separator}")
+                print(f"OVERALL PROMPT")
+                print(f"Characters: {len(prompt):,}")
+                print(f"{separator}\n")
+                print(prompt)
+                print()
+            return
+
         logger.info("  Breakdown: %s  →  %d period(s)", period, len(periods))
 
         periods_out: list[tuple[str, str, dict, str]] = []
