@@ -108,11 +108,13 @@ def render_report(
     if full_pd:
         total_merged = len(full_pd["pr_stats"]["merged"])
         total_open = len(full_pd["pr_stats"]["open"])
+        total_draft = len(full_pd["pr_stats"].get("draft", []))
         total_abandoned = len(full_pd["pr_stats"]["closed_unmerged"])
         total_commits = len(full_pd["commits"])
     else:
         total_merged = sum(len(pd["pr_stats"]["merged"]) for _, _, pd, _ in periods_out)
         total_open = sum(len(pd["pr_stats"]["open"]) for _, _, pd, _ in periods_out)
+        total_draft = sum(len(pd["pr_stats"].get("draft", [])) for _, _, pd, _ in periods_out)
         total_abandoned = sum(len(pd["pr_stats"]["closed_unmerged"]) for _, _, pd, _ in periods_out)
         total_commits = sum(len(pd["commits"]) for _, _, pd, _ in periods_out)
 
@@ -122,7 +124,8 @@ def render_report(
     # Prepare period data for templates
     periods_data = []
     for label, pid, pd, summary in periods_out:
-        all_prs = pd["pr_stats"]["merged"] + pd["pr_stats"]["open"] + pd["pr_stats"]["closed_unmerged"]
+        ps = pd["pr_stats"]
+        all_prs = ps["merged"] + ps["open"] + ps.get("draft", []) + ps["closed_unmerged"]
         hotfiles = _compute_hotfiles(all_prs)
         max_hotfile_churn = max((s["add"] + s["del"] for _, s in hotfiles), default=1) or 1
 
@@ -162,6 +165,7 @@ def render_report(
         no_summary=no_summary,
         total_merged=total_merged,
         total_open=total_open,
+        total_draft=total_draft,
         total_abandoned=total_abandoned,
         total_commits=total_commits,
         periods_data=periods_data,

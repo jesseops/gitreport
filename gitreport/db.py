@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS prs (
     review_decision  TEXT,
     labels           TEXT,
     milestone        TEXT,
+    is_draft         INTEGER DEFAULT 0,
     PRIMARY KEY (repo, number)
 );
 
@@ -101,6 +102,7 @@ MIGRATIONS = [
     "ALTER TABLE prs ADD COLUMN milestone TEXT",
     "ALTER TABLE repos ADD COLUMN last_diff_sync TEXT",
     "CREATE INDEX IF NOT EXISTS idx_prs_dates_v2 ON prs(repo, created_at, merged_at, closed_at)",
+    "ALTER TABLE prs ADD COLUMN is_draft INTEGER DEFAULT 0",
 ]
 
 
@@ -139,7 +141,7 @@ def db_connect(cfg: Config | None = None) -> sqlite3.Connection:
 
 def db_upsert_prs(con: sqlite3.Connection, repo: str, prs: list[dict]) -> None:
     con.executemany("""
-        INSERT INTO prs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        INSERT INTO prs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON CONFLICT(repo,number) DO UPDATE SET
             title=excluded.title, body=excluded.body,
             state=excluded.state, updated_at=excluded.updated_at,
@@ -148,7 +150,8 @@ def db_upsert_prs(con: sqlite3.Connection, repo: str, prs: list[dict]) -> None:
             comment_count=excluded.comment_count,
             review_count=excluded.review_count,
             review_decision=excluded.review_decision,
-            labels=excluded.labels, milestone=excluded.milestone
+            labels=excluded.labels, milestone=excluded.milestone,
+            is_draft=excluded.is_draft
     """, [(
         repo,
         pr["number"],
@@ -169,6 +172,7 @@ def db_upsert_prs(con: sqlite3.Connection, repo: str, prs: list[dict]) -> None:
         (pr.get("reviewDecision") or ""),
         json.dumps([lbl["name"] for lbl in (pr.get("labels") or [])]),
         (pr.get("milestone") or {}).get("title", "") if pr.get("milestone") else "",
+        1 if pr.get("isDraft") else 0,
     ) for pr in prs])
 
 
@@ -331,7 +335,7 @@ def query_period(
         pr_list.append(pr)
 
     # Categorize
-    pr_stats: dict[str, list[dict]] = {"merged": [], "open": [], "closed_unmerged": []}
+    pr_stats: dict[str, list[dict]] = {"merged": [], "open": [], "draft": [], "closed_unmerged": []}
     for pr in pr_list:
         merged_in_period = pr.get("merged_at") and pr["merged_at"] >= s and pr["merged_at"] < e
         closed_in_period = pr.get("closed_at") and pr["closed_at"] >= s and pr["closed_at"] < e
@@ -340,6 +344,8 @@ def query_period(
             pr_stats["merged"].append(pr)
         elif closed_in_period and not pr.get("merged_at"):
             pr_stats["closed_unmerged"].append(pr)
+        elif pr.get("is_draft"):
+            pr_stats["draft"].append(pr)
         else:
             pr_stats["open"].append(pr)
 
@@ -377,7 +383,7 @@ def query_period(
     diffs_by_pr: dict[int, str] = {}
     if include_diffs:
         budget_chars = max_diff_tokens * CHARS_PER_TOKEN
-        ordered_prs = pr_stats["merged"] + pr_stats["open"] + pr_stats["closed_unmerged"]
+        ordered_prs = pr_stats["merged"] + pr_stats["open"] + pr_stats["draft"] + pr_stats["closed_unmerged"]
         for pr in ordered_prs:
             if budget_chars <= 0:
                 break

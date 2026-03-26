@@ -31,6 +31,8 @@ def main(argv: list[str] | None = None) -> None:
     p_sync.add_argument("--repo", required=True, help="owner/repo")
     p_sync.add_argument("--full", action="store_true", help="Clear and re-fetch everything")
     p_sync.add_argument("--with-diffs", action="store_true", help="Also fetch and store full PR diff text")
+    p_sync.add_argument("--backfill-prs", action="store_true",
+                        help="Re-fetch ALL PRs (updates draft status, labels, etc.) without re-fetching commits/branches")
     p_sync.add_argument("--backfill-commits", action="store_true",
                         help="Fetch ALL commits without re-fetching PRs/branches")
 

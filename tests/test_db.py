@@ -79,6 +79,37 @@ def test_query_period_filters_by_date(in_memory_db, sample_pr):
     assert len(result_outside["pr_stats"]["merged"]) == 0
 
 
+def test_upsert_draft_pr_roundtrip(in_memory_db, sample_draft_pr):
+    """Draft status should survive upsert and appear in query_period."""
+    db_upsert_prs(in_memory_db, "owner/repo", [sample_draft_pr])
+    in_memory_db.commit()
+
+    row = in_memory_db.execute("SELECT is_draft FROM prs WHERE number=99").fetchone()
+    assert row["is_draft"] == 1
+
+    start = datetime(2025, 2, 1, tzinfo=UTC)
+    end = datetime(2025, 3, 1, tzinfo=UTC)
+    result = query_period(in_memory_db, "owner/repo", start, end)
+    assert len(result["pr_stats"]["draft"]) == 1
+    assert result["pr_stats"]["draft"][0]["number"] == 99
+    assert len(result["pr_stats"]["open"]) == 0
+
+
+def test_non_draft_pr_stays_in_open(in_memory_db, sample_pr):
+    """A non-draft open PR should land in 'open', not 'draft'."""
+    sample_pr["state"] = "OPEN"
+    sample_pr["mergedAt"] = ""
+    sample_pr["isDraft"] = False
+    db_upsert_prs(in_memory_db, "owner/repo", [sample_pr])
+    in_memory_db.commit()
+
+    start = datetime(2025, 2, 1, tzinfo=UTC)
+    end = datetime(2025, 4, 1, tzinfo=UTC)
+    result = query_period(in_memory_db, "owner/repo", start, end)
+    assert len(result["pr_stats"]["open"]) == 1
+    assert len(result["pr_stats"]["draft"]) == 0
+
+
 def test_build_periods_weekly():
     start = datetime(2025, 3, 1, tzinfo=UTC)
     end = datetime(2025, 3, 22, tzinfo=UTC)

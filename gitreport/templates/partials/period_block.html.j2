@@ -15,7 +15,8 @@
     <span class="period-label">{{ p.label }}</span>
     <div class="period-stats">
       <span class="period-stat"><strong class="merged">{{ pr.merged|length }}</strong> merged</span>
-      <span class="period-stat"><strong class="open">{{ pr.open|length }}</strong> open</span>
+      <span class="period-stat"><strong class="open">{{ pr.open|length }}</strong> in review</span>
+      <span class="period-stat"><strong class="draft">{{ pr.draft|length }}</strong> draft</span>
       <span class="period-stat"><strong class="abandoned">{{ pr.closed_unmerged|length }}</strong> abandoned</span>
       <span class="period-stat"><strong>{{ pd.commits|length }}</strong> commits</span>
     </div>
@@ -32,10 +33,20 @@
     </ul></div>
   </details>
   <details class="section-accordion">
-    <summary><span class="section-label">Open PRs ({{ pr.open|length }})</span></summary>
+    <summary><span class="section-label">In Review ({{ pr.open|length }})</span></summary>
     <div class="accordion-body"><ul class="pr-list">
       {% if pr.open %}
         {% for prx in pr.open[:10] %}{{ pr_card(prx, "pill-open", "open", repo) }}{% endfor %}
+      {% else %}
+        <li style="color:var(--muted);padding:8px 0">None</li>
+      {% endif %}
+    </ul></div>
+  </details>
+  <details class="section-accordion">
+    <summary><span class="section-label">Draft PRs ({{ pr.draft|length }})</span></summary>
+    <div class="accordion-body"><ul class="pr-list">
+      {% if pr.draft %}
+        {% for prx in pr.draft[:10] %}{{ pr_card(prx, "pill-draft", "draft", repo) }}{% endfor %}
       {% else %}
         <li style="color:var(--muted);padding:8px 0">None</li>
       {% endif %}

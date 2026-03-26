@@ -57,6 +57,7 @@ _PR_GRAPHQL_FIELDS = """
   title
   body
   state
+  isDraft
   author { login }
   createdAt
   updatedAt
@@ -116,6 +117,7 @@ def _normalise_pr(node: dict) -> dict:
         "title":          node.get("title") or "",
         "body":           node.get("body") or "",
         "state":          node.get("state") or "",
+        "isDraft":        bool(node.get("isDraft")),
         "author":         node.get("author") or {},
         "createdAt":      node.get("createdAt") or "",
         "updatedAt":      node.get("updatedAt") or "",

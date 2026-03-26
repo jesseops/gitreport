@@ -17,6 +17,7 @@
 <li class="pr-card">
   <div class="pr-card-header">
     <span class="pill {{ pill_cls }}">{{ pill_lbl }}</span>
+    {% if pr.is_draft %}<span class="pill pill-draft">draft</span>{% endif %}
     <a href="https://github.com/{{ repo }}/pull/{{ number }}" class="pr-title" target="_blank" title="{{ pr.title|default('') }}">{{ display_title }}</a>
     <span class="pr-meta">{{ meta_parts|join(" · ") }}</span>
   </div>

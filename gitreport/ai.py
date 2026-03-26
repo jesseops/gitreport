@@ -240,7 +240,8 @@ def _pr_block(pr: dict, include_diff: bool = False, diffs_by_pr: dict | None = N
     """Format a single PR for an AI prompt."""
     lines = []
     login = pr.get("author") or "?"
-    lines.append(f"  PR #{pr['number']}: [{pr.get('title', '')}] by @{login}")
+    draft_tag = "[DRAFT] " if pr.get("is_draft") else ""
+    lines.append(f"  PR #{pr['number']}: {draft_tag}[{pr.get('title', '')}] by @{login}")
 
     if pr.get("merged_at"):
         lines.append(f"    Merged: {pr['merged_at'][:10]}")
@@ -315,6 +316,7 @@ def build_prompt_period(repo: str, label: str, pd: dict, deep: bool = False,
 
     merged_block = "\n\n".join(_pr_block(p, include_diff, diffs) for p in pr["merged"][:20]) or "  (none)"
     open_block = "\n\n".join(_pr_block(p, include_diff, diffs) for p in pr["open"][:20]) or "  (none)"
+    draft_block = "\n\n".join(_pr_block(p, include_diff, diffs) for p in pr.get("draft", [])[:20]) or "  (none)"
     abandoned_block = "\n\n".join(_pr_block(p, include_diff, diffs) for p in pr["closed_unmerged"][:15]) or "  (none)"
 
     active_br = "\n".join(f"  {b['name']} ({b.get('age_days', '?')}d ago, @{b.get('last_author', '')})"
@@ -334,8 +336,12 @@ Period: {label}
 ━━━ MERGED PRs ({len(pr['merged'])}) ━━━
 {merged_block}
 
-━━━ OPENED (not yet resolved in period) ({len(pr['open'])}) ━━━
+━━━ OPEN / IN REVIEW ({len(pr['open'])}) ━━━
 {open_block}
+
+━━━ DRAFT PRs ({len(pr.get('draft', []))}) ━━━
+{draft_block}
+Note: Draft PRs are for early feedback, info sharing, spikes, or placeholders. Flag any that are stale.
 
 ━━━ CLOSED WITHOUT MERGING ({len(pr['closed_unmerged'])}) ━━━
 {abandoned_block}
@@ -362,7 +368,7 @@ def build_prompt_overall(repo: str, window: str, pd: dict,
     top = sorted(ua.items(), key=lambda x: x[1]["commits"] + x[1]["prs_merged"], reverse=True)[:10]
 
     file_counts: dict[str, dict] = defaultdict(lambda: {"additions": 0, "deletions": 0, "pr_count": 0})
-    for p in pr["merged"] + pr["open"] + pr["closed_unmerged"]:
+    for p in pr["merged"] + pr["open"] + pr.get("draft", []) + pr["closed_unmerged"]:
         for f in p.get("files", []):
             file_counts[f["filename"]]["additions"] += f["additions"]
             file_counts[f["filename"]]["deletions"] += f["deletions"]
@@ -379,12 +385,17 @@ def build_prompt_overall(repo: str, window: str, pd: dict,
 
     instructions = _load_prompt_instructions(cfg, "overall") if cfg else DEFAULT_OVERALL_INSTRUCTIONS
 
+    n_merged = len(pr["merged"])
+    n_open = len(pr["open"])
+    n_draft = len(pr.get("draft", []))
+    n_abandoned = len(pr["closed_unmerged"])
+
     return f"""Analyze GitHub repository activity across the full reporting window.
 
 Repository: {repo}
 Full window: {window}
 
-Totals: {len(pr['merged'])} merged | {len(pr['open'])} open | {len(pr['closed_unmerged'])} abandoned
+Totals: {n_merged} merged | {n_open} in review | {n_draft} draft | {n_abandoned} abandoned
 
 ━━━ MOST-CHANGED FILES (full window) ━━━
 {hot_files_str}

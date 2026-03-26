@@ -43,6 +43,7 @@ def sample_pr() -> dict:
         "title": "Add feature X",
         "body": "This PR adds feature X to the system.",
         "state": "MERGED",
+        "isDraft": False,
         "author": {"login": "alice"},
         "createdAt": "2025-03-01T10:00:00Z",
         "updatedAt": "2025-03-05T15:00:00Z",
@@ -57,6 +58,32 @@ def sample_pr() -> dict:
         "reviewDecision": "APPROVED",
         "labels": [{"name": "enhancement"}],
         "milestone": {"title": "v1.0"},
+    }
+
+
+@pytest.fixture
+def sample_draft_pr() -> dict:
+    """A sample draft PR dict in GraphQL-normalised shape."""
+    return {
+        "number": 99,
+        "title": "WIP: Spike on new auth flow",
+        "body": "Early exploration of OAuth2 PKCE flow.",
+        "state": "OPEN",
+        "isDraft": True,
+        "author": {"login": "bob"},
+        "createdAt": "2025-02-15T10:00:00Z",
+        "updatedAt": "2025-02-20T12:00:00Z",
+        "mergedAt": "",
+        "closedAt": "",
+        "baseRefName": "main",
+        "headRefName": "spike/auth-flow",
+        "additions": 45,
+        "deletions": 5,
+        "comments": 1,
+        "reviews": [],
+        "reviewDecision": "",
+        "labels": [],
+        "milestone": {"title": ""},
     }
 
 
@@ -90,6 +117,7 @@ def sample_period_data() -> dict:
                 "repo": "owner/repo",
             }],
             "open": [],
+            "draft": [],
             "closed_unmerged": [],
         },
         "user_activity": {

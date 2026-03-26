@@ -66,6 +66,17 @@ def _do_sync(con: sqlite3.Connection, args: argparse.Namespace, repo: str, with_
         _print_db_status(con, repo)
         return
 
+    # Quick path: re-fetch all PR metadata (draft status, labels, etc.)
+    if args.backfill_prs:
+        logger.info("\nBackfilling all PRs for %s...", repo)
+        all_prs = fetch_prs_graphql(repo, since=None)
+        logger.info("    %d PRs fetched", len(all_prs))
+        db_upsert_prs(con, repo, all_prs)
+        con.commit()
+        print(f"PR backfill complete → {db_path}")
+        _print_db_status(con, repo)
+        return
+
     last_sync, last_diff_sync = db_last_sync(con, repo)
 
     if last_sync and not args.full:

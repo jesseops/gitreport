@@ -51,6 +51,25 @@ def test_build_prompt_period_deep(sample_period_data):
     assert "Full diff:" in prompt
 
 
+def test_build_prompt_period_with_drafts(sample_period_data):
+    """Draft PRs should appear in a separate DRAFT section with [DRAFT] tag."""
+    sample_period_data["pr_stats"]["draft"] = [{
+        "number": 99, "title": "WIP: Spike on auth", "state": "OPEN",
+        "author": "bob", "created_at": "2025-02-15T10:00:00Z",
+        "merged_at": "", "closed_at": "", "is_draft": 1,
+        "additions": 45, "deletions": 5, "comment_count": 1,
+        "review_count": 0, "review_decision": "", "labels": [],
+        "milestone": "", "body": "Early exploration.", "head_branch": "spike/auth",
+        "base_branch": "main", "updated_at": "2025-02-20T12:00:00Z",
+        "files": [], "repo": "owner/repo",
+    }]
+    prompt = build_prompt_period("owner/repo", "Week of Mar 01", sample_period_data)
+    assert "DRAFT PRs (1)" in prompt
+    assert "[DRAFT]" in prompt
+    assert "PR #99" in prompt
+    assert "Spike on auth" in prompt
+
+
 def test_build_prompt_overall(sample_period_data):
     prompt = build_prompt_overall("owner/repo", "Mar 01 – Mar 31, 2025", sample_period_data)
     assert "owner/repo" in prompt
