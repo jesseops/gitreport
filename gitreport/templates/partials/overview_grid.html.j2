@@ -1,7 +1,6 @@
 <div class="overview-grid">
   <div class="cell"><div class="section-label">Total Merged</div><div class="stat-value merged">{{ total_merged }}</div><div class="stat-label">PRs landed</div></div>
-  <div class="cell"><div class="section-label">In Review</div><div class="stat-value open">{{ total_open }}</div><div class="stat-label">ready for review</div></div>
-  <div class="cell"><div class="section-label">Draft</div><div class="stat-value draft">{{ total_draft }}</div><div class="stat-label">draft PRs</div></div>
+  <div class="cell"><div class="section-label">Open</div><div class="stat-value open">{{ total_open }}</div><div class="stat-label">in review</div><div class="stat-sub draft">{{ total_draft }} draft</div></div>
   <div class="cell"><div class="section-label">Abandoned</div><div class="stat-value abandoned">{{ total_abandoned }}</div><div class="stat-label">closed without merge</div></div>
   <div class="cell"><div class="section-label">Commits</div><div class="stat-value" style="color:var(--accent2)">{{ total_commits }}</div><div class="stat-label">on default branch</div></div>
 </div>
