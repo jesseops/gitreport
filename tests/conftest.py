@@ -130,7 +130,9 @@ def sample_period_data() -> dict:
         },
         "commits": [
             {"sha": "abc1234", "author": "alice", "committed_at": "2025-03-03T12:00:00Z",
-             "message": "fix: resolve edge case in parser", "repo": "owner/repo"},
+             "message": "fix: resolve edge case in parser", "repo": "owner/repo", "pr_number": 42},
+            {"sha": "def5678", "author": "bob", "committed_at": "2025-03-04T12:00:00Z",
+             "message": "update CI config", "repo": "owner/repo"},
         ],
         "diffs_by_pr": {},
     }

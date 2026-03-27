@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import re
 import sqlite3
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -275,6 +276,45 @@ def build_periods(
     return periods
 
 
+# ── Commit–PR association ──────────────────────────────────────────────────
+
+_MERGE_PR_RE = re.compile(r"^Merge pull request #(\d+) from \S+")
+_SQUASH_RE = re.compile(r"\(#(\d+)\)\s*$")
+_MERGE_INTO_RE = re.compile(r"^Merge branch '.+' into (.+)$")
+
+
+def _annotate_commits_with_prs(
+    commits: list[dict], prs_raw: list[sqlite3.Row]
+) -> list[dict]:
+    """Tag each commit with its associated PR number when detectable."""
+    branch_to_pr: dict[str, int] = {}
+    pr_numbers: set[int] = set()
+    for pr in prs_raw:
+        pr_numbers.add(pr["number"])
+        if pr["head_branch"]:
+            branch_to_pr[pr["head_branch"]] = pr["number"]
+
+    for c in commits:
+        msg = (c.get("message") or "").split("\n")[0]
+        pr_num: int | None = None
+
+        m = _MERGE_PR_RE.match(msg)
+        if m:
+            pr_num = int(m.group(1))
+        if not pr_num:
+            m = _SQUASH_RE.search(msg)
+            if m:
+                pr_num = int(m.group(1))
+        if not pr_num:
+            m = _MERGE_INTO_RE.match(msg)
+            if m and m.group(1) in branch_to_pr:
+                pr_num = branch_to_pr[m.group(1)]
+
+        if pr_num:
+            c["pr_number"] = pr_num
+    return commits
+
+
 # ── Query helpers ──────────────────────────────────────────────────────────
 
 def query_period(
@@ -398,10 +438,14 @@ def query_period(
             diffs_by_pr[pr["number"]] = diff[:allowed] + ("…[truncated]" if allowed < len(diff) else "")
             budget_chars -= allowed
 
+    # Annotate commits with PR context
+    commits = [dict(c) for c in commits_raw]
+    commits = _annotate_commits_with_prs(commits, prs_raw)
+
     return {
         "pr_stats": pr_stats,
         "user_activity": dict(ua),
         "branch_cats": bc,
-        "commits": [dict(c) for c in commits_raw],
+        "commits": commits,
         "diffs_by_pr": diffs_by_pr,
     }

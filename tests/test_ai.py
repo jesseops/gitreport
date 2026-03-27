@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from gitreport.ai import (
     NoneProvider,
+    _commits_block,
     build_prompt_overall,
     build_prompt_period,
     get_provider,
@@ -68,6 +69,27 @@ def test_build_prompt_period_with_drafts(sample_period_data):
     assert "[DRAFT]" in prompt
     assert "PR #99" in prompt
     assert "Spike on auth" in prompt
+
+
+def test_commits_block_with_pr_context():
+    """Commits with pr_number get a [PR #N] tag; those without do not."""
+    commits = [
+        {"sha": "abc1234f", "author": "alice", "committed_at": "2025-03-03T12:00:00Z",
+         "message": "fix: edge case", "pr_number": 42},
+        {"sha": "def5678a", "author": "bob", "committed_at": "2025-03-04T12:00:00Z",
+         "message": "direct fix on main"},
+    ]
+    result = _commits_block(commits)
+    lines = result.strip().split("\n")
+    assert "[PR #42]" in lines[0]
+    assert "[PR #" not in lines[1]
+
+
+def test_build_prompt_period_commits_note(sample_period_data):
+    """The commits section should include PR provenance guidance for the AI."""
+    prompt = build_prompt_period("owner/repo", "Week of Mar 01", sample_period_data)
+    assert "not direct pushes" in prompt
+    assert "[PR #42]" in prompt
 
 
 def test_build_prompt_overall(sample_period_data):

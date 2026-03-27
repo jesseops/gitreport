@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from gitreport.db import (
+    _annotate_commits_with_prs,
     build_periods,
     db_upsert_commits,
     db_upsert_prs,
@@ -135,3 +136,42 @@ def test_build_periods_none():
     periods = build_periods("none", start, end)
     assert len(periods) == 1
     assert periods[0][0] == "Full Window"
+
+
+class TestAnnotateCommitsWithPrs:
+    """Tests for _annotate_commits_with_prs commit–PR association."""
+
+    @staticmethod
+    def _make_pr(number, head_branch):
+        """Minimal PR row-like dict."""
+        return {"number": number, "head_branch": head_branch}
+
+    def test_merge_commit_pattern(self):
+        commits = [{"message": "Merge pull request #123 from org/feature-x", "sha": "aaa"}]
+        prs = [self._make_pr(123, "feature-x")]
+        result = _annotate_commits_with_prs(commits, prs)
+        assert result[0]["pr_number"] == 123
+
+    def test_squash_merge_pattern(self):
+        commits = [{"message": "Add widget support (#456)", "sha": "bbb"}]
+        prs = [self._make_pr(456, "add-widget")]
+        result = _annotate_commits_with_prs(commits, prs)
+        assert result[0]["pr_number"] == 456
+
+    def test_merge_into_branch_pattern(self):
+        commits = [{"message": "Merge branch 'main' into my-feature", "sha": "ccc"}]
+        prs = [self._make_pr(789, "my-feature")]
+        result = _annotate_commits_with_prs(commits, prs)
+        assert result[0]["pr_number"] == 789
+
+    def test_no_match_leaves_no_pr_number(self):
+        commits = [{"message": "random commit with no PR ref", "sha": "ddd"}]
+        prs = [self._make_pr(100, "some-branch")]
+        result = _annotate_commits_with_prs(commits, prs)
+        assert "pr_number" not in result[0]
+
+    def test_unknown_branch_no_match(self):
+        commits = [{"message": "Merge branch 'main' into unknown-branch", "sha": "eee"}]
+        prs = [self._make_pr(200, "other-branch")]
+        result = _annotate_commits_with_prs(commits, prs)
+        assert "pr_number" not in result[0]

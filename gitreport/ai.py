@@ -295,7 +295,8 @@ def _commits_block(commits: list[dict], max_commits: int = 30) -> str:
     lines = []
     for c in commits[:max_commits]:
         msg = (c.get("message") or "").split("\n")[0][:120]
-        lines.append(f"  {c.get('sha', '')[:7]}  @{c.get('author', '?')}  {c.get('committed_at', '')[:10]}  {msg}")
+        pr_tag = f"  [PR #{c['pr_number']}]" if c.get("pr_number") else ""
+        lines.append(f"  {c.get('sha', '')[:7]}  @{c.get('author', '?')}  {c.get('committed_at', '')[:10]}{pr_tag}  {msg}")
     if len(commits) > max_commits:
         lines.append(f"  … {len(commits) - max_commits} more commits")
     return "\n".join(lines)
@@ -347,6 +348,7 @@ Note: Draft PRs are for early feedback, info sharing, spikes, or placeholders. F
 {abandoned_block}
 
 ━━━ COMMITS ({len(pd['commits'])}) ━━━
+Commits tagged [PR #N] were part of that PR's review cycle, not direct pushes to the default branch.
 {commits_block}
 
 ━━━ ACTIVE BRANCHES ━━━
