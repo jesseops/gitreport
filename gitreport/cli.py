@@ -247,7 +247,16 @@ def _cmd_report(args: argparse.Namespace, cfg: Config) -> None:
             cfg=cfg, provider_name=provider.name,
         )
 
-        output_path = cfg.report.output
+        if args.output:
+            output_path = args.output
+        elif cfg.report.output != "report.html":
+            output_path = cfg.report.output
+        else:
+            safe_repo = repo.replace("/", "-")
+            from_str = date_from.strftime("%Y-%m-%d")
+            to_str = date_to.strftime("%Y-%m-%d")
+            output_path = f"{safe_repo}_{from_str}_{to_str}_{period}.html"
+
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
