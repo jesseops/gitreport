@@ -311,24 +311,28 @@ def build_prompt_period(repo: str, label: str, pd: dict, deep: bool = False,
     diffs = pd.get("diffs_by_pr", {})
     include_diff = deep
 
+    max_prs = cfg.report.max_prs if cfg else 20
+    cap = max_prs if max_prs > 0 else None  # 0 means no limit
+
     top = sorted(ua.items(), key=lambda x: x[1]["commits"] + x[1]["prs_merged"], reverse=True)[:10]
     user_lines = "\n".join(
         f"  @{u}: {s['commits']} commits | {s['prs_merged']} PRs merged | +{s['additions']}/-{s['deletions']} lines"
         for u, s in top) or "  (none)"
 
-    merged_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=True) for p in pr["merged"][:20]) or "  (none)"
-    open_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr["open"][:20]) or "  (none)"
-    draft_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr.get("draft", [])[:20]) or "  (none)"
-    abandoned_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr["closed_unmerged"][:15]) or "  (none)"
+    merged_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=True) for p in pr["merged"][:cap]) or "  (none)"
+    open_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr["open"][:cap]) or "  (none)"
+    draft_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr.get("draft", [])[:cap]) or "  (none)"
+    abandoned_block = "\n\n".join(_pr_block(p, include_diff, diffs, include_body=False) for p in pr["closed_unmerged"][:cap]) or "  (none)"
 
-    for cat, items, cap in [
-        ("merged", pr["merged"], 20),
-        ("open", pr["open"], 20),
-        ("draft", pr.get("draft", []), 20),
-        ("closed unmerged", pr["closed_unmerged"], 15),
-    ]:
-        if len(items) > cap:
-            logger.warning("Period %s: %d/%d %s PRs omitted from AI prompt", label, len(items) - cap, len(items), cat)
+    if cap is not None:
+        for cat, items in [
+            ("merged", pr["merged"]),
+            ("open", pr["open"]),
+            ("draft", pr.get("draft", [])),
+            ("closed unmerged", pr["closed_unmerged"]),
+        ]:
+            if len(items) > cap:
+                logger.warning("Period %s: %d/%d %s PRs omitted from AI prompt", label, len(items) - cap, len(items), cat)
 
     active_br = "\n".join(f"  {b['name']} ({b.get('age_days', '?')}d ago, @{b.get('last_author', '')})"
                           for b in bc["active"][:20]) or "  (none)"

@@ -53,6 +53,8 @@ def main(argv: list[str] | None = None) -> None:
                        help="Include full diff content in prompts (requires sync --with-diffs)")
     p_rep.add_argument("--max-diff-tokens", type=int, default=None,
                        help="Token budget for diff content per period (default: 8000)")
+    p_rep.add_argument("--max-prs", type=int, default=None,
+                       help="Max PRs per category in AI prompt (0 = no limit, default: 20)")
     p_rep.add_argument("--dump-prompts", action="store_true",
                        help="Print the prompts that would be sent to the AI provider and exit")
 
@@ -78,6 +80,8 @@ def main(argv: list[str] | None = None) -> None:
         cli_overrides["output"] = args.output
     if hasattr(args, "max_diff_tokens") and args.max_diff_tokens is not None:
         cli_overrides["max_diff_tokens"] = args.max_diff_tokens
+    if hasattr(args, "max_prs") and args.max_prs is not None:
+        cli_overrides["max_prs"] = args.max_prs
     if hasattr(args, "days") and args.days is not None:
         cli_overrides["days"] = args.days
     if hasattr(args, "port") and args.port is not None:

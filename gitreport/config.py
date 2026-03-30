@@ -25,6 +25,7 @@ class AIConfig:
 class ReportConfig:
     stale_branch_days: int = 14
     max_diff_tokens: int = 8_000
+    max_prs: int = 20
     default_days: int = 30
     output: str = "report.html"
 
@@ -122,6 +123,8 @@ def load_config(cli_overrides: dict | None = None) -> Config:
             cfg = _replace_nested(cfg, "report", output=overrides["output"])
         if "max_diff_tokens" in overrides and overrides["max_diff_tokens"] is not None:
             cfg = _replace_nested(cfg, "report", max_diff_tokens=overrides["max_diff_tokens"])
+        if "max_prs" in overrides and overrides["max_prs"] is not None:
+            cfg = _replace_nested(cfg, "report", max_prs=overrides["max_prs"])
         if "days" in overrides and overrides["days"] is not None:
             cfg = _replace_nested(cfg, "report", default_days=overrides["days"])
         if "db_path" in overrides and overrides["db_path"] is not None:
