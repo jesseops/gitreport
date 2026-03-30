@@ -27,6 +27,10 @@
     <div class="accordion-body"><ul class="pr-list">
       {% if pr.merged %}
         {% for prx in pr.merged[:10] %}{{ pr_card(prx, "pill-merged", "merged", repo) }}{% endfor %}
+        {% for prx in pr.merged[10:] %}{{ pr_card(prx, "pill-merged", "merged", repo, overflow=true) }}{% endfor %}
+        {% if pr.merged|length > 10 %}
+        <li class="show-more-item"><button class="show-more-btn" onclick="toggleMorePRs(this)">Show {{ pr.merged|length - 10 }} more…</button></li>
+        {% endif %}
       {% else %}
         <li style="color:var(--muted);padding:8px 0">None</li>
       {% endif %}
@@ -37,6 +41,10 @@
     <div class="accordion-body"><ul class="pr-list">
       {% if pr.open %}
         {% for prx in pr.open[:10] %}{{ pr_card(prx, "pill-open", "open", repo) }}{% endfor %}
+        {% for prx in pr.open[10:] %}{{ pr_card(prx, "pill-open", "open", repo, overflow=true) }}{% endfor %}
+        {% if pr.open|length > 10 %}
+        <li class="show-more-item"><button class="show-more-btn" onclick="toggleMorePRs(this)">Show {{ pr.open|length - 10 }} more…</button></li>
+        {% endif %}
       {% else %}
         <li style="color:var(--muted);padding:8px 0">None</li>
       {% endif %}
@@ -47,6 +55,10 @@
     <div class="accordion-body"><ul class="pr-list">
       {% if pr.draft %}
         {% for prx in pr.draft[:10] %}{{ pr_card(prx, "pill-draft", "draft", repo) }}{% endfor %}
+        {% for prx in pr.draft[10:] %}{{ pr_card(prx, "pill-draft", "draft", repo, overflow=true) }}{% endfor %}
+        {% if pr.draft|length > 10 %}
+        <li class="show-more-item"><button class="show-more-btn" onclick="toggleMorePRs(this)">Show {{ pr.draft|length - 10 }} more…</button></li>
+        {% endif %}
       {% else %}
         <li style="color:var(--muted);padding:8px 0">None</li>
       {% endif %}
@@ -57,6 +69,10 @@
     <div class="accordion-body"><ul class="pr-list">
       {% if pr.closed_unmerged %}
         {% for prx in pr.closed_unmerged[:10] %}{{ pr_card(prx, "pill-closed", "closed", repo) }}{% endfor %}
+        {% for prx in pr.closed_unmerged[10:] %}{{ pr_card(prx, "pill-closed", "closed", repo, overflow=true) }}{% endfor %}
+        {% if pr.closed_unmerged|length > 10 %}
+        <li class="show-more-item"><button class="show-more-btn" onclick="toggleMorePRs(this)">Show {{ pr.closed_unmerged|length - 10 }} more…</button></li>
+        {% endif %}
       {% else %}
         <li style="color:var(--muted);padding:8px 0">None</li>
       {% endif %}

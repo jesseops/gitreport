@@ -1,4 +1,4 @@
-{% macro pr_card(pr, pill_cls, pill_lbl, repo) %}
+{% macro pr_card(pr, pill_cls, pill_lbl, repo, overflow=false) %}
 {% set number = pr.number|default("") %}
 {% set title_text = (pr.title|default("")|truncate(70, True, "…")) %}
 {% set display_title = "#" ~ number ~ " " ~ title_text if number else title_text %}
@@ -14,7 +14,7 @@
   {% else %}{% set rd_icon = "?" %}{% endif %}
   {% set meta_parts = meta_parts + [rd_icon ~ " " ~ pr.review_decision|lower|replace("_", " ")] %}
 {% endif %}
-<li class="pr-card">
+<li class="pr-card{% if overflow %} pr-card-overflow{% endif %}"{% if overflow %} style="display:none"{% endif %}>
   <div class="pr-card-header">
     <span class="pill {{ pill_cls }}">{{ pill_lbl }}</span>
     {% if pr.is_draft %}<span class="pill pill-draft">draft</span>{% endif %}
@@ -28,9 +28,12 @@
     {% endfor %}
   </div>
   {% endif %}
-  {% set body = (pr.body|default("")|truncate(160, True, "…"))|trim %}
+  {% set body = (pr.body|default(""))|trim %}
   {% if body %}
-  <div class="pr-body">{{ body }}</div>
+  <details class="pr-body-details">
+    <summary class="pr-body-toggle">Description</summary>
+    <div class="pr-body-content ai-summary">{{ body|md_to_html|safe }}</div>
+  </details>
   {% endif %}
   {% if pr.files %}
   {% set files = pr.files %}
