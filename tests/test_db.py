@@ -111,6 +111,46 @@ def test_non_draft_pr_stays_in_open(in_memory_db, sample_pr):
     assert len(result["pr_stats"]["draft"]) == 0
 
 
+def test_open_pr_appears_outside_creation_period(in_memory_db, sample_pr):
+    """Open PRs should appear in reports even when created before the period."""
+    sample_pr["state"] = "OPEN"
+    sample_pr["mergedAt"] = ""
+    sample_pr["isDraft"] = False
+    # PR created in March
+    sample_pr["createdAt"] = "2025-03-05T10:00:00Z"
+    db_upsert_prs(in_memory_db, "owner/repo", [sample_pr])
+    in_memory_db.commit()
+
+    # Query for April — well outside creation date
+    start = datetime(2025, 4, 1, tzinfo=UTC)
+    end = datetime(2025, 5, 1, tzinfo=UTC)
+    result = query_period(in_memory_db, "owner/repo", start, end)
+    assert len(result["pr_stats"]["open"]) == 1
+
+
+def test_draft_pr_appears_outside_creation_period(in_memory_db, sample_draft_pr):
+    """Draft PRs should appear in reports even when created before the period."""
+    db_upsert_prs(in_memory_db, "owner/repo", [sample_draft_pr])
+    in_memory_db.commit()
+
+    # Query for a period well after creation
+    start = datetime(2025, 6, 1, tzinfo=UTC)
+    end = datetime(2025, 7, 1, tzinfo=UTC)
+    result = query_period(in_memory_db, "owner/repo", start, end)
+    assert len(result["pr_stats"]["draft"]) == 1
+
+
+def test_merged_pr_does_not_leak_outside_period(in_memory_db, sample_pr):
+    """Merged PRs should NOT appear when queried outside their date range."""
+    db_upsert_prs(in_memory_db, "owner/repo", [sample_pr])
+    in_memory_db.commit()
+
+    start = datetime(2025, 4, 1, tzinfo=UTC)
+    end = datetime(2025, 5, 1, tzinfo=UTC)
+    result = query_period(in_memory_db, "owner/repo", start, end)
+    assert len(result["pr_stats"]["merged"]) == 0
+
+
 def test_build_periods_weekly():
     start = datetime(2025, 3, 1, tzinfo=UTC)
     end = datetime(2025, 3, 22, tzinfo=UTC)

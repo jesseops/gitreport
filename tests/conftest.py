@@ -98,6 +98,64 @@ def sample_commit() -> dict:
     }
 
 
+# ── Builder helpers (not fixtures — call directly in tests) ────────────────
+
+
+def make_pr(number, *, state="MERGED", created="2025-03-01T10:00:00Z",
+            updated="2025-03-05T15:00:00Z", merged="2025-03-05T14:00:00Z",
+            closed="", is_draft=False, author="alice", head_branch=None,
+            base_branch="main", additions=100, deletions=20, title=None,
+            body="", comments=0, reviews=None, review_decision="",
+            labels=None, milestone=""):
+    """Build a PR dict in GraphQL-normalised shape with sensible defaults."""
+    if head_branch is None:
+        head_branch = f"pr-{number}"
+    if title is None:
+        title = f"PR #{number}"
+    return {
+        "number": number,
+        "title": title,
+        "body": body,
+        "state": state,
+        "isDraft": is_draft,
+        "author": {"login": author},
+        "createdAt": created,
+        "updatedAt": updated,
+        "mergedAt": merged,
+        "closedAt": closed,
+        "baseRefName": base_branch,
+        "headRefName": head_branch,
+        "additions": additions,
+        "deletions": deletions,
+        "comments": comments,
+        "reviews": reviews or [],
+        "reviewDecision": review_decision,
+        "labels": [{"name": n} for n in (labels or [])],
+        "milestone": {"title": milestone} if milestone else {"title": ""},
+    }
+
+
+def make_commit(sha, *, author="alice", date="2025-03-03T12:00:00Z",
+                message="fix: something"):
+    """Build a commit dict in GraphQL-normalised shape."""
+    return {
+        "abbreviatedOid": sha,
+        "authors": [{"login": author, "name": author}],
+        "committedDate": date,
+        "message": message,
+    }
+
+
+def make_branch(name, *, last_commit="2025-03-03T12:00:00Z",
+                last_author="alice"):
+    """Build a branch dict for db_upsert_branches."""
+    return {
+        "name": name,
+        "last_commit": last_commit,
+        "last_author": last_author,
+    }
+
+
 @pytest.fixture
 def sample_period_data() -> dict:
     """Sample period data as returned by query_period."""

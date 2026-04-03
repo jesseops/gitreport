@@ -284,15 +284,23 @@ _MERGE_INTO_RE = re.compile(r"^Merge branch '.+' into (.+)$")
 
 
 def _annotate_commits_with_prs(
-    commits: list[dict], prs_raw: list[sqlite3.Row]
+    commits: list[dict], prs_raw: list[sqlite3.Row],
+    con: sqlite3.Connection | None = None, repo: str = "",
 ) -> list[dict]:
     """Tag each commit with its associated PR number when detectable."""
     branch_to_pr: dict[str, int] = {}
-    pr_numbers: set[int] = set()
-    for pr in prs_raw:
-        pr_numbers.add(pr["number"])
-        if pr["head_branch"]:
-            branch_to_pr[pr["head_branch"]] = pr["number"]
+    if con and repo:
+        # Use ALL PRs in the DB for branch→PR mapping so that commits from
+        # PRs created before the reporting period can still be matched.
+        for row in con.execute(
+            "SELECT number, head_branch FROM prs WHERE repo=? AND head_branch IS NOT NULL",
+            (repo,),
+        ):
+            branch_to_pr[row["head_branch"]] = row["number"]
+    else:
+        for pr in prs_raw:
+            if pr["head_branch"]:
+                branch_to_pr[pr["head_branch"]] = pr["number"]
 
     for c in commits:
         msg = (c.get("message") or "").split("\n")[0]
@@ -333,7 +341,8 @@ def query_period(
         SELECT * FROM prs WHERE repo=? AND (
             (created_at >= ? AND created_at < ?) OR
             (merged_at  >= ? AND merged_at  < ?) OR
-            (closed_at  >= ? AND closed_at  < ?)
+            (closed_at  >= ? AND closed_at  < ?) OR
+            state = 'OPEN'
         ) ORDER BY COALESCE(merged_at, created_at) DESC
     """, (repo, s, e, s, e, s, e)).fetchall()
 
@@ -440,7 +449,7 @@ def query_period(
 
     # Annotate commits with PR context
     commits = [dict(c) for c in commits_raw]
-    commits = _annotate_commits_with_prs(commits, prs_raw)
+    commits = _annotate_commits_with_prs(commits, prs_raw, con=con, repo=repo)
 
     return {
         "pr_stats": pr_stats,
